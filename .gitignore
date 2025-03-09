@@ -1,0 +1,8 @@
+__pycache__/
+window_todo/
+build/
+dist/
+logs/
+
+config.json
+WeeklyTodo.spec
