@@ -33,6 +33,9 @@ class TodoApp:
             utils.save_config(self.config)  # 설정 저장
         ## 이전 버전과 호완성을 위해 추가함
 
+        self.last_click_time = 0  # 마지막 클릭 시간을 저장할 변수
+        self.click_timer = None  # 클릭 타이머를 저장할 변수
+        self.editing = False  # 편집 상태를 추적할 변수
         
         self.todo_widgets = {}
 
@@ -244,8 +247,8 @@ class TodoApp:
         listbox.name = listbox_name
      
         # 각 리스트 박스에 대한 이벤트 바인딩
-        listbox.bind("<Button-1>", lambda event, d=day, t=time, lb=listbox: self.toggle_completion(event, d, t, lb))
-        listbox.bind("<Double-Button-1>", lambda event, d=day, t=time, lb=listbox: self.edit_item(event, d, t, lb))
+        listbox.bind("<Double-Button-1>", lambda event, d=day, t=time, lb=listbox: self.handle_double_click(event, d, t, lb))
+        listbox.bind("<Button-1>", lambda event, d=day, t=time, lb=listbox: self.handle_single_click(event, d, t, lb))
         listbox.bind("<Button-3>", lambda event, d=day, t=time, lb=listbox: self.delete_item(event, d, t, lb))  # 우클릭 이벤트 추가
         listbox.bind("<MouseWheel>", lambda event: self.scroll_listbox(event, listbox))
         listbox.bind("<Double-Button-3>", lambda event, d=day, t=time, lb=listbox: self.add_new_item(d, t, lb))      
@@ -274,6 +277,12 @@ class TodoApp:
     
     def toggle_completion(self, event, day, time, listbox):
         """Todo 항목 클릭 시 색 변경"""
+        current_time = event.time
+        # 300ms 이내의 클릭은 더블클릭으로 간주하여 무시
+        if current_time - self.last_click_time < 300:
+            return
+        self.last_click_time = current_time
+        
         # 클릭한 위치의 항목 인덱스를 가져옵니다
         index = listbox.nearest(event.y)
         
@@ -312,6 +321,8 @@ class TodoApp:
     
     def edit_item(self, event, day, time, listbox):
         """Todo 항목 수정"""
+        self.last_click_time = event.time  # 더블클릭 시간 저장
+        
         index = listbox.nearest(event.y)
 
         # 예외 처리: 리스트에 항목이 없는 경우
@@ -414,6 +425,28 @@ class TodoApp:
                 max_width = text_width
 
         listbox.configure(width=max_width + 2)  # 여유 공간 추가
+
+    def handle_double_click(self, event, day, time, listbox):
+        """더블클릭 이벤트 처리"""
+        if self.click_timer:
+            self.root.after_cancel(self.click_timer)
+            self.click_timer = None
+        self.editing = True
+        self.edit_item(event, day, time, listbox)
+        self.editing = False
+
+    def handle_single_click(self, event, day, time, listbox):
+        """단일 클릭 이벤트 처리"""
+        if self.click_timer:
+            self.root.after_cancel(self.click_timer)
+        # 300ms 후에 toggle_completion 실행
+        self.click_timer = self.root.after(300, lambda: self.delayed_toggle(event, day, time, listbox))
+
+    def delayed_toggle(self, event, day, time, listbox):
+        """지연된 토글 처리"""
+        if not self.editing:  # 편집 중이 아닐 때만 토글
+            self.toggle_completion(event, day, time, listbox)
+        self.click_timer = None
 
 if __name__ == "__main__":
     root = tk.Tk()
