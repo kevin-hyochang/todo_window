@@ -36,14 +36,20 @@ class TodoApp:
 
         # BooleanVar 변수를 인스턴스 변수로 저장
         self.reset_button_var = tk.BooleanVar(value=self.config.get('show_reset_button'))
-        
+        self.saturday_var = tk.BooleanVar(value=self.config.get('show_saturday'))
+
         # 체크박스 메뉴 항목 추가
         settings_menu.add_checkbutton(
             label="초기화 버튼 활성화 여부",
             variable=self.reset_button_var,
             command=self.toggle_reset_button
         )
-    
+        settings_menu.add_checkbutton(
+                label="토요일 활성화",
+                variable=self.saturday_var,
+                command=self.toggle_saturday
+            ) 
+           
         self.menu_bar.add_cascade(label="설정", menu=settings_menu)
 
         # 메뉴 바를 윈도우에 설정
@@ -56,6 +62,24 @@ class TodoApp:
         utils.save_config(self.config)
         self.update_reset_button_checkbutton()
         self.update_widgets()  # 위젯 업데이트
+
+    def toggle_saturday(self):
+        """토요일 활성화 여부를 토글합니다."""
+        self.config['show_saturday'] = not self.config.get('show_saturday')
+        utils.save_config(self.config)
+        # 변경사항을 즉시 반영하기 위해 전체 위젯 새로고침
+        self.refresh_widgets()
+
+    def refresh_widgets(self):
+        """전체 위젯을 새로고침합니다."""
+        # 기존 위젯 제거
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
+        # 위젯 재생성
+        self.create_menu()
+        self.create_widgets()
+        
 
     def update_reset_button_checkbutton(self):
         """체크박스 상태를 업데이트합니다."""
@@ -95,9 +119,16 @@ class TodoApp:
                 reset_button.pack(side="right", padx=5)
         
     def create_widgets(self):
-        # days = ["월요일", "화요일", "수요일", "목요일", "금요일"]
-        # times = ["오전", "오후"]
+        """요일 및 시간대에 따른 Todo 리스트 위젯 생성"""
         days = self.config.get('days')
+        
+        if self.config.get('show_saturday') == False:
+            if days.count("토요일") > 0:
+                days.remove("토요일")
+        else :
+            if days.count("토요일") == 0:
+                days.append("토요일")
+
         times = self.config.get('times')
 
         # Grid 레이아웃을 위한 프레임 생성
@@ -111,13 +142,16 @@ class TodoApp:
 
         # 요일 헤더 생성
         for i, day in enumerate(days):
+            # 각 요일 열에 동일한 가중치 부여
+            header_frame.columnconfigure(i, weight=1)
+
             day_label = ttk.Label(header_frame, text=day, anchor="center")
             day_label.grid(row=0, column=i, sticky="nsew", padx=5)
             day_label.bind("<Button-1>", lambda e, d=day: self.clear_all_selections())
             header_frame.columnconfigure(i, weight=1)
 
         # 오전/오후 헤더를 위한 프레임 생성 (너비 고정)
-        time_frame = ttk.Frame(main_frame, width=40)
+        time_frame = ttk.Frame(main_frame, width=60)
         time_frame.grid(row=1, column=0, rowspan=len(times), sticky="ns")
         time_frame.grid_propagate(False)  # 너비 고정
 
@@ -127,14 +161,20 @@ class TodoApp:
             time_label.grid(row=i, column=0, sticky="nsew", pady=5)
             time_label.configure(justify="center")  # 텍스트 중앙 정렬
             time_frame.rowconfigure(i, weight=1)
-            time_frame.columnconfigure(0, weight=1)  # 열도 가중치 설정하여 중앙 정렬 보장
 
         # Todo 리스트 생성
         for i, time in enumerate(times):
             for j, day in enumerate(days):
-                frame = ttk.Frame(main_frame)
-                frame.grid(row=i+1, column=j+1, sticky="nsew", padx=5, pady=5)
-                self.create_time_widgets(frame, day, time)
+                
+                if day == "토요일":
+                    if i ==0:
+                        frame = ttk.Frame(main_frame)
+                        frame.grid(row=1, column=j+1, rowspan=2, sticky="nsew", padx=5, pady=5)
+                        self.create_time_widgets(frame, day, "전체")                        
+                else :                
+                    frame = ttk.Frame(main_frame)
+                    frame.grid(row=i+1, column=j+1, sticky="nsew", padx=5, pady=5)
+                    self.create_time_widgets(frame, day, time)
 
         # 하단 여백을 위한 빈 프레임과 초기화 버튼
         bottom_frame = ttk.Frame(main_frame, height=20)

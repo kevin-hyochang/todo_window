@@ -27,7 +27,7 @@ def load_config():
     except FileNotFoundError or json.JSONDecodeError:
         # config.json 파일이 없거나 오류가 발생하는 경우 초기화
         default_config = {
-            "days": ["월요일", "화요일", "수요일", "목요일", "금요일"],  # 요일 목록
+            "days": ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일"],  # 요일 목록
             "times": ["오전", "오후"],  # 시간대 목록
             "todos": {},  # 할 일 목록
             "last_reset_date": str(datetime.date.today()),
@@ -38,6 +38,9 @@ def load_config():
             day: {time: [] for time in default_config["times"]}
             for day in default_config["days"]
         }
+        
+        # 토요일 추가 (오전/오후 구분 없이)
+        default_config["todos"]["토요일"] = {"전체": []}        
         
         save_config(default_config)  # config.json 파일 생성
         return default_config
