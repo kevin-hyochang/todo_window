@@ -64,19 +64,10 @@ def reset_weekly_todos():
 def check_and_reset_todos():
     """ last_modified_date가 지난주인 경우 Todo 항목을 초기화합니다."""
     config = load_config()
-    
-    try:
-        last_modified = datetime.datetime.fromtimestamp(os.path.getmtime(CONFIG_FILE)).date()
-    except FileNotFoundError:
-        reset_weekly_todos()
-        return
-    except OSError:  # 파일이 손상되었을 경우
-        reset_weekly_todos()
-        return
-    
+        
     today = datetime.date.today()
     last_reset_date = datetime.datetime.strptime(config['last_reset_date'], '%Y-%m-%d').date()
 
     # 오늘이 월요일이거나, 마지막 초기화 날짜가 이번 주 이전이거나, 파일 수정일이 지난주인 경우 초기화
-    if today.weekday() == 0 or last_reset_date < today - datetime.timedelta(days=today.weekday()) or last_modified < today - datetime.timedelta(days=7):
+    if last_reset_date < today - datetime.timedelta(days=today.weekday()) :
         reset_weekly_todos()

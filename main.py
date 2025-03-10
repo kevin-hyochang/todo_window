@@ -21,10 +21,78 @@ class TodoApp:
         self.todo_items = self.config['todos']
         self.todo_widgets = {}
 
+        self.create_menu()
         self.create_widgets()
         self.check_weekly_reset()
         # 8시간마다 check_weekly_reset 실행
         self.schedule_weekly_reset()
+        
+    def create_menu(self):
+        """메뉴 바 생성"""
+        self.menu_bar = tk.Menu(self.root)
+
+        # "설정" 메뉴        
+        settings_menu = tk.Menu(self.menu_bar, tearoff=0)
+
+        # BooleanVar 변수를 인스턴스 변수로 저장
+        self.reset_button_var = tk.BooleanVar(value=self.config.get('show_reset_button'))
+        
+        # 체크박스 메뉴 항목 추가
+        settings_menu.add_checkbutton(
+            label="초기화 버튼 활성화 여부",
+            variable=self.reset_button_var,
+            command=self.toggle_reset_button
+        )
+    
+        self.menu_bar.add_cascade(label="설정", menu=settings_menu)
+
+        # 메뉴 바를 윈도우에 설정
+        self.root.config(menu=self.menu_bar)
+
+    def toggle_reset_button(self):
+        """초기화 버튼 활성화 여부 토글"""
+        
+        self.config['show_reset_button'] = not self.config.get('show_reset_button')
+        utils.save_config(self.config)
+        self.update_reset_button_checkbutton()
+        self.update_widgets()  # 위젯 업데이트
+
+    def update_reset_button_checkbutton(self):
+        """체크박스 상태를 업데이트합니다."""
+        self.reset_button_var.set(self.config.get('show_reset_button'))
+        
+    def update_widgets(self):
+        """초기화 버튼 표시 여부만 업데이트"""
+        bottom_frame = None
+        main_frame = None
+        
+        # 먼저 main_frame을 찾습니다
+        for widget in self.root.winfo_children():
+            if isinstance(widget, ttk.Frame):
+                main_frame = widget
+                break
+        
+        if main_frame:
+            # main_frame에서 bottom_frame을 찾습니다
+            for widget in main_frame.winfo_children():
+                if isinstance(widget, ttk.Frame) and widget.grid_info().get('row') == 3:  # 행 번호로 식별
+                    bottom_frame = widget
+                    break
+        
+        if bottom_frame:
+            # 기존 버튼들 제거
+            for widget in bottom_frame.winfo_children():
+                widget.destroy()
+            
+            # show_reset_button 설정에 따라 버튼 다시 생성
+            if self.config.get('show_reset_button', True):
+                reset_button = ttk.Button(
+                    bottom_frame, 
+                    text="초기화", 
+                    command=self.reset_todos_check,
+                    width=10
+                )
+                reset_button.pack(side="right", padx=5)
         
     def create_widgets(self):
         # days = ["월요일", "화요일", "수요일", "목요일", "금요일"]
@@ -45,7 +113,7 @@ class TodoApp:
         for i, day in enumerate(days):
             day_label = ttk.Label(header_frame, text=day, anchor="center")
             day_label.grid(row=0, column=i, sticky="nsew", padx=5)
-            day_label.bind("<Button-1>", lambda e: self.clear_all_selections())
+            day_label.bind("<Button-1>", lambda e, d=day: self.clear_all_selections())
             header_frame.columnconfigure(i, weight=1)
 
         # 오전/오후 헤더를 위한 프레임 생성 (너비 고정)
@@ -103,9 +171,10 @@ class TodoApp:
         listbox_name = f"{day}_{time}_listbox"
         listbox.name = listbox_name
                 
-        # 각 리스트 박스에 대한 toggle_completion 함수를 개별적으로 바인딩
+        # 각 리스트 박스에 대한 이벤트 바인딩
         listbox.bind("<Button-1>", lambda event, d=day, t=time, lb=listbox: self.toggle_completion(event, d, t, lb))
         listbox.bind("<Double-Button-1>", lambda event, d=day, t=time, lb=listbox: self.edit_item(event, d, t, lb))
+        listbox.bind("<Button-3>", lambda event, d=day, t=time, lb=listbox: self.delete_item(event, d, t, lb))  # 우클릭 이벤트 추가
         listbox.bind("<MouseWheel>", lambda event: self.scroll_listbox(event, listbox))
         listbox.bind("<Double-Button-3>", lambda event, d=day, t=time, lb=listbox: self.add_new_item(d, t, lb))      
        
@@ -190,6 +259,28 @@ class TodoApp:
         """마우스 휠 스크롤"""
         listbox.yview_scroll(int(-1*(event.delta/120)), "units")
 
+    def delete_item(self, event, day, time, listbox):
+        """Todo 항목 삭제"""
+        # 클릭한 위치의 항목 인덱스를 가져옵니다
+        index = listbox.nearest(event.y)
+        
+        # 클릭한 위치가 실제 항목 영역인지 확인
+        bbox = listbox.bbox(index)
+        if bbox is None or event.y > bbox[1] + bbox[3]:  # bbox[1]은 y좌표, bbox[3]은 높이
+            return
+
+        # 항목이 없는 경우 return
+        if not (0 <= index < listbox.size()):
+            return
+
+        # 삭제 확인 메시지
+        item = self.todo_items[day][time][index]
+        if messagebox.askyesno("삭제 확인", f"'{item['text']}' 항목을 삭제하시겠습니까?"):
+            # 항목 삭제
+            del self.todo_items[day][time][index]
+            listbox.delete(index)
+            utils.save_config(self.config)
+
     def check_weekly_reset(self):
         """매주 월요일에 Todo 항목을 초기화합니다."""
         utils.check_and_reset_todos()
@@ -212,9 +303,7 @@ class TodoApp:
         """주기적으로 weekly_reset을 체크합니다."""
         self.check_weekly_reset()
         # 8시간 후에 다시 실행
-        # self.root.after(3600000*8, self.schedule_weekly_reset)
-        self.root.after(1000, self.schedule_weekly_reset)
-        
+        self.root.after(3600000*8, self.schedule_weekly_reset)        
 
 if __name__ == "__main__":
     root = tk.Tk()
