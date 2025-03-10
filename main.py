@@ -225,9 +225,15 @@ class TodoApp:
         """Todo 항목을 리스트 박스에 로드합니다."""
         items = self.todo_items[day][time]
         for item in items:
-            listbox.insert(tk.END, item['text'])
             if item['completed']:
+                # 취소선이 있는 텍스트 생성
+                strike_text = '\u0336'.join(item['text']) + '\u0336'
+                listbox.insert(tk.END, strike_text)
                 listbox.itemconfig(listbox.size()-1, fg="grey")
+            else:
+                # 일반 텍스트
+                listbox.insert(tk.END, item['text'])
+                
                 
     def clear_all_selections(self):
         """모든 리스트박스의 선택을 해제합니다."""
@@ -253,11 +259,21 @@ class TodoApp:
 
         item = self.todo_items[day][time][index]
         item['completed'] = not item['completed']
+
+        # 현재 텍스트 가져오기
+        current_text = item['text']
         
         if item['completed']:
+            # 취소선 추가 (유니코드 취소선 문자 사용)
+            strike_text = '\u0336'.join(current_text) + '\u0336'
+            listbox.delete(index)
+            listbox.insert(index, strike_text)
             listbox.itemconfig(index, fg="grey")
-            utils.log_completion(day, time, item['text'])
+            utils.log_completion(day, time, current_text)
         else:
+            # 취소선 제거
+            listbox.delete(index)
+            listbox.insert(index, current_text)
             listbox.itemconfig(index, fg="black")
         
         utils.save_config(self.config)
