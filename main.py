@@ -80,7 +80,7 @@ class TodoApp:
 
     def toggle_saturday(self):
         """토요일 활성화 여부를 토글합니다."""
-        self.config['show_saturday'] = not self.config.get('show_saturday')
+        self.config['show_saturday'] = not self.config['show_saturday']
         utils.save_config(self.config)
         # 변경사항을 즉시 반영하기 위해 전체 위젯 새로고침
         self.refresh_widgets()
@@ -218,9 +218,26 @@ class TodoApp:
         list_frame.pack(fill="both", expand=True)
         
         # Todo 항목을 표시할 리스트 박스
-        listbox = tk.Listbox(list_frame, width=20, height=5, font=("Helvetica", 12),
-                             borderwidth=0, highlightthickness=0,  selectmode='single')  # 테두리 제거
-        listbox.pack(pady=0, padx=0, fill="both", expand=True)  # 패딩 및 여백 제거
+        listbox = tk.Listbox(
+            list_frame, 
+            width=20,  # 초기 너비 설정
+            height=5, 
+            font=("Helvetica", 12),
+            borderwidth=0, 
+            highlightthickness=0, 
+            selectmode='single'
+        )
+        listbox.pack(pady=0, padx=0, fill="both", expand=True)
+
+        # 텍스트 너비에 따른 리스트박스 크기 조정 함수
+        def adjust_width(event=None):
+            self.adjust_listbox_width(listbox, day, time)
+        
+        # 초기 너비 조정
+        adjust_width()
+        
+        # 항목 추가/수정 시 너비 자동 조정을 위한 바인딩
+        listbox.bind('<<ListboxSelect>>', adjust_width)
         
         # 리스트 박스에 고유한 이름 부여
         listbox_name = f"{day}_{time}_listbox"
@@ -309,8 +326,12 @@ class TodoApp:
             item['text'] = new_text
             listbox.delete(index)
             listbox.insert(index, new_text)
+            
+            # 너비 재조정
+            self.adjust_listbox_width(listbox, day, time)
+            
             utils.save_config(self.config)
-    
+
     def add_new_item(self, day, time, listbox):
         """새로운 Todo 항목 추가"""
         new_text = simpledialog.askstring("Add Item", "Enter new item")
@@ -350,6 +371,10 @@ class TodoApp:
             # 항목 삭제
             del self.todo_items[day][time][index]
             listbox.delete(index)
+            
+            # 너비 재조정
+            self.adjust_listbox_width(listbox, day, time)
+            
             utils.save_config(self.config)
 
     def check_weekly_reset(self):
@@ -376,6 +401,19 @@ class TodoApp:
         self.check_weekly_reset()
         # 8시간 후에 다시 실행
         self.root.after(3600000*8, self.schedule_weekly_reset)        
+
+    def adjust_listbox_width(self, listbox, day, time):
+        """리스트박스의 너비를 내용에 맞게 조정합니다."""
+        items = self.todo_items[day][time]
+        max_width = 20  # 최소 너비
+        
+        for item in items:
+            text = item['text']
+            text_width = len(text)
+            if text_width > max_width:
+                max_width = text_width
+
+        listbox.configure(width=max_width + 2)  # 여유 공간 추가
 
 if __name__ == "__main__":
     root = tk.Tk()
