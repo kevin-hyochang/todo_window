@@ -31,7 +31,8 @@ def load_config():
             "times": ["오전", "오후"],  # 시간대 목록
             "todos": {},  # 할 일 목록
             "last_reset_date": str(datetime.date.today()),
-            "show_reset_button": True
+            "show_reset_button": False,
+            "show_saturday": False
         }
         
         default_config["todos"] = {

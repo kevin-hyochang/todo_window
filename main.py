@@ -19,6 +19,21 @@ class TodoApp:
 
         self.config = utils.load_config()
         self.todo_items = self.config['todos']
+
+
+        ## 이전 버전과 호완성을 위해 추가함
+
+        # show_saturday 설정이 없는 경우 기본값 False로 설정
+        if 'show_saturday' not in self.config:
+            self.config['show_saturday'] = False
+            utils.save_config(self.config)
+
+        if "토요일" not in self.todo_items:
+            self.todo_items["토요일"] = {"전체": []}
+            utils.save_config(self.config)  # 설정 저장
+        ## 이전 버전과 호완성을 위해 추가함
+
+        
         self.todo_widgets = {}
 
         self.create_menu()
