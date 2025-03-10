@@ -64,7 +64,7 @@ class TodoApp:
                 variable=self.saturday_var,
                 command=self.toggle_saturday
             ) 
-           
+
         self.menu_bar.add_cascade(label="설정", menu=settings_menu)
 
         # 메뉴 바를 윈도우에 설정
@@ -122,7 +122,7 @@ class TodoApp:
             # 기존 버튼들 제거
             for widget in bottom_frame.winfo_children():
                 widget.destroy()
-            
+ 
             # show_reset_button 설정에 따라 버튼 다시 생성
             if self.config.get('show_reset_button', True):
                 reset_button = ttk.Button(
@@ -180,13 +180,13 @@ class TodoApp:
         # Todo 리스트 생성
         for i, time in enumerate(times):
             for j, day in enumerate(days):
-                
+     
                 if day == "토요일":
                     if i ==0:
                         frame = ttk.Frame(main_frame)
                         frame.grid(row=1, column=j+1, rowspan=2, sticky="nsew", padx=5, pady=5)
-                        self.create_time_widgets(frame, day, "전체")                        
-                else :                
+                        self.create_time_widgets(frame, day, "전체")             
+                else :     
                     frame = ttk.Frame(main_frame)
                     frame.grid(row=i+1, column=j+1, sticky="nsew", padx=5, pady=5)
                     self.create_time_widgets(frame, day, time)
@@ -225,7 +225,7 @@ class TodoApp:
         # 리스트 박스에 고유한 이름 부여
         listbox_name = f"{day}_{time}_listbox"
         listbox.name = listbox_name
-                
+     
         # 각 리스트 박스에 대한 이벤트 바인딩
         listbox.bind("<Button-1>", lambda event, d=day, t=time, lb=listbox: self.toggle_completion(event, d, t, lb))
         listbox.bind("<Double-Button-1>", lambda event, d=day, t=time, lb=listbox: self.edit_item(event, d, t, lb))
@@ -248,8 +248,8 @@ class TodoApp:
             else:
                 # 일반 텍스트
                 listbox.insert(tk.END, item['text'])
-                
-                
+     
+     
     def clear_all_selections(self):
         """모든 리스트박스의 선택을 해제합니다."""
         for listbox in self.todo_widgets.values():
@@ -320,12 +320,12 @@ class TodoApp:
                 self.todo_items[day] = {}
             if not self.todo_items[day].get(time):
                 self.todo_items[day][time] = []
-                
+     
             # 새 항목 추가    
             self.todo_items[day][time].append({"text": new_text, "completed": False})
             listbox.insert(tk.END, new_text)
             utils.save_config(self.config)
-            
+ 
     def scroll_listbox(self, event, listbox):
         """마우스 휠 스크롤"""
         listbox.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -360,16 +360,17 @@ class TodoApp:
     def reset_todos_check(self):
         """Todo 항목을 초기화합니다."""
         if messagebox.askyesno("초기화 확인", "모든 Todo 항목을 초기화하시겠습니까?"):
-            utils.reset_weekly_todos()           
+            utils.reset_weekly_todos()
+            self.update_list_box()
 
     def update_list_box(self):
         self.config = utils.load_config()
-        self.todo_items = self.config['todos']                
+        self.todo_items = self.config['todos']     
         # 모든 리스트 박스 업데이트
         for (day, time), listbox in self.todo_widgets.items():
             listbox.delete(0, tk.END)
             self.load_items(day, time, listbox)
-                
+     
     def schedule_weekly_reset(self):
         """주기적으로 weekly_reset을 체크합니다."""
         self.check_weekly_reset()
