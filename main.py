@@ -49,8 +49,6 @@ class TodoApp:
     def create_menu(self):
         """메뉴 바 생성"""
         self.menu_bar = tk.Menu(self.root)
-
-        # "설정" 메뉴        
         settings_menu = tk.Menu(self.menu_bar, tearoff=0)
 
         # BooleanVar 변수를 인스턴스 변수로 저장
@@ -64,15 +62,41 @@ class TodoApp:
             command=self.toggle_reset_button
         )
         settings_menu.add_checkbutton(
-                label="토요일 활성화",
-                variable=self.saturday_var,
-                command=self.toggle_saturday
-            ) 
+            label="토요일 활성화",
+            variable=self.saturday_var,
+            command=self.toggle_saturday
+        )
+        
+        # 구분선 추가
+        settings_menu.add_separator()
+        
+        # 업무 종료 시간 설정 메뉴 추가
+        settings_menu.add_command(
+            label="업무 종료 시간 설정",
+            command=self.set_work_end_time
+        )
 
         self.menu_bar.add_cascade(label="설정", menu=settings_menu)
-
-        # 메뉴 바를 윈도우에 설정
         self.root.config(menu=self.menu_bar)
+
+    def set_work_end_time(self):
+        """업무 종료 시간 설정"""
+        current_time = self.config.get('work_end_time', '18:00')
+        new_time = simpledialog.askstring(
+            "업무 종료 시간 설정",
+            "업무 종료 시간을 입력하세요 (HH:MM)",
+            initialvalue=current_time
+        )
+        
+        if new_time:
+            # 시간 형식 검증 (HH:MM)
+            import re
+            if re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', new_time):
+                self.config['work_end_time'] = new_time
+                utils.save_config(self.config)
+                messagebox.showinfo("설정 완료", f"업무 종료 시간이 {new_time}로 설정되었습니다.")
+            else:
+                messagebox.showerror("형식 오류", "올바른 시간 형식을 입력하세요 (예: 18:00)")
 
     def toggle_reset_button(self):
         """초기화 버튼 활성화 여부 토글"""
