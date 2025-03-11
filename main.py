@@ -3,6 +3,7 @@ from tkinter import ttk, simpledialog, messagebox
 import utils
 import os
 import sys
+import tkinter.font
 
 class TodoApp:
     def __init__(self, root):
@@ -268,6 +269,7 @@ class TodoApp:
             else:
                 # 일반 텍스트
                 listbox.insert(tk.END, item['text'])
+        self.adjust_listbox_width(listbox, day, time)
      
      
     def clear_all_selections(self):
@@ -416,16 +418,33 @@ class TodoApp:
     def adjust_listbox_width(self, listbox, day, time):
         """리스트박스의 너비를 내용에 맞게 조정합니다."""
         items = self.todo_items[day][time]
-        max_width = 20  # 최소 너비
+        min_width = 20  # 최소 너비
+        padding = 2     # 여유 공간
+
+        if not items:  # 항목이 없으면 최소 너비 설정
+            listbox.configure(width=min_width)
+            return
+
+        # 리스트박스의 폰트 정보를 가져옴
+        font = tkinter.font.Font(font=listbox['font'])
         
+        # 한글 기준 문자 너비 (캐싱)
+        base_width = font.measure('가')
+        
+        # 가장 긴 텍스트의 너비 계산
+        max_char_width = min_width
         for item in items:
             text = item['text']
-            text_width = len(text)
-            if text_width > max_width:
-                max_width = text_width
+            # 전체 텍스트의 픽셀 너비를 한 번에 계산
+            text_width = font.measure(text)
+            # 문자 단위로 변환
+            char_width = int(text_width / base_width)
+            max_char_width = max(max_char_width, char_width)
 
-        listbox.configure(width=max_width + 2)  # 여유 공간 추가
-
+        # 최종 너비 설정
+        listbox.configure(width=max_char_width + padding)
+        
+        
     def handle_double_click(self, event, day, time, listbox):
         """더블클릭 이벤트 처리"""
         if self.click_timer:
