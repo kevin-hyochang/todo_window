@@ -25,3 +25,7 @@
 ### pip install win10toast
 
 #### pyinstaller --onefile --noconsole --add-data "todo.ico;." --icon todo.ico --name WeeklyTodo main.py
+
+
+## 테스트 수행
+### python -m unittest test_integration.py

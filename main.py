@@ -582,14 +582,14 @@ class TodoApp:
         self.schedule_end_time_check()
 
     def _show_notification(self, incomplete_tasks):
-        """윈도우 알림을 표시합니다."""
-        title = "업무 종료 30분 전 알림"
-        message = "미완료 항목이 있습니다:\n" + "\n".join(incomplete_tasks[:5])
-        if len(incomplete_tasks) > 5:
-            message += f"\n...외 {len(incomplete_tasks)-5}개"
-            
-        # 메인 스레드에서 메시지 박스 표시
-        self.root.after(0, lambda: messagebox.showwarning(title, message))
+        """알림을 표시합니다."""
+        # 테스트 환경인지 확인
+        if not hasattr(self, '_test_mode'):
+            title = "업무 종료 30분 전 알림"
+            message = "미완료 항목이 있습니다:\n" + "\n".join(incomplete_tasks[:5])
+            if len(incomplete_tasks) > 5:
+                message += f"\n...외 {len(incomplete_tasks)-5}개"
+            self.root.after(0, lambda: messagebox.showwarning(title, message))
 
 if __name__ == "__main__":
     root = tk.Tk()
