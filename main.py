@@ -4,6 +4,8 @@ import utils
 import os
 import sys
 import tkinter.font
+from datetime import datetime, timedelta
+import threading
 
 class TodoApp:
     def __init__(self, root):
@@ -37,6 +39,7 @@ class TodoApp:
         self.last_click_time = 0  # 마지막 클릭 시간을 저장할 변수
         self.click_timer = None  # 클릭 타이머를 저장할 변수
         self.editing = False  # 편집 상태를 추적할 변수
+        self.end_time_check_id = None  # 알림 스케줄링 ID 저장 변수 추가
         
         self.todo_widgets = {}
 
@@ -45,6 +48,7 @@ class TodoApp:
         self.check_weekly_reset()
         # 8시간마다 check_weekly_reset 실행
         self.schedule_weekly_reset()
+        self.schedule_end_time_check()
         
     def create_menu(self):
         """메뉴 바 생성"""
@@ -94,6 +98,13 @@ class TodoApp:
             if re.match(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', new_time):
                 self.config['work_end_time'] = new_time
                 utils.save_config(self.config)
+                
+                # 기존 스케줄링된 알림 취소
+                if self.end_time_check_id:
+                    self.root.after_cancel(self.end_time_check_id)
+                
+                # 새로운 시간으로 알림 재설정
+                self.schedule_end_time_check()
                 messagebox.showinfo("설정 완료", f"업무 종료 시간이 {new_time}로 설정되었습니다.")
             else:
                 messagebox.showerror("형식 오류", "올바른 시간 형식을 입력하세요 (예: 18:00)")
@@ -490,6 +501,95 @@ class TodoApp:
         if not self.editing:  # 편집 중이 아닐 때만 토글
             self.toggle_completion(event, day, time, listbox)
         self.click_timer = None
+
+    def schedule_end_time_check(self):
+        """업무 종료 시간 체크를 스케줄링합니다."""
+        now = datetime.now()
+        work_end_time = self.get_work_end_time()
+        
+        if work_end_time is None:
+            # 24시간 후에 다시 체크
+            self.end_time_check_id = self.root.after(24*60*60*1000, self.schedule_end_time_check)
+            return
+            
+        # 알림 시간 계산 (종료 30분 전)
+        notify_time = work_end_time - timedelta(minutes=30)
+        
+        # 오늘 알림 시간이 지났다면 다음 날로 설정
+        if now > notify_time:
+            notify_time = notify_time + timedelta(days=1)
+        
+        # 알림 시간까지의 대기 시간(밀리초) 계산
+        wait_ms = int((notify_time - now).total_seconds() * 1000)
+        
+        # 알림 스케줄링
+        self.end_time_check_id = self.root.after(wait_ms, self.check_incomplete_tasks)
+
+    def get_work_end_time(self):
+        """오늘의 업무 종료 시간을 datetime 객체로 반환합니다."""
+        try:
+            # work_end_time이 설정되지 않은 경우 기본값 18:00 사용
+            end_time_str = self.config.get('work_end_time')
+            if not end_time_str:
+                self.config['work_end_time'] = '18:00'  # 기본값 저장
+                utils.save_config(self.config)
+                end_time_str = '18:00'
+                
+            hour, minute = map(int, end_time_str.split(':'))
+            now = datetime.now()
+            return now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        except:
+            # 에러 발생시에도 기본값 18:00 사용
+            now = datetime.now()
+            return now.replace(hour=18, minute=0, second=0, microsecond=0)
+
+    def check_incomplete_tasks(self):
+        """미완료 항목을 확인하고 알림을 표시합니다."""
+        incomplete_tasks = []
+        
+        # 현재 요일 확인
+        weekdays = {
+            0: "월요일",
+            1: "화요일",
+            2: "수요일",
+            3: "목요일",
+            4: "금요일",
+            5: "토요일",
+            6: "일요일"
+        }
+        today = weekdays[datetime.now().weekday()]
+
+        # 오늘이 todos에 없거나, 
+        # 토요일이 비활성화되어 있는데 오늘이 토요일이면 알림 표시하지 않음
+        if (today not in self.todo_items or
+            (today == "토요일" and not self.config.get('show_saturday', False))):
+            self.schedule_end_time_check()  # 다음 날 체크를 위해 스케줄링
+            return
+        
+        # 오늘의 미완료 항목만 확인
+        if today in self.todo_items:
+            for time, items in self.todo_items[today].items():
+                for item in items:
+                    if not item['completed']:
+                        incomplete_tasks.append(f"[{time}] {item['text']}")
+        
+        # 미완료 항목이 있으면 알림 표시
+        if incomplete_tasks:
+            threading.Thread(target=self._show_notification, 
+                           args=(incomplete_tasks,)).start()
+        
+        # 다음 날 같은 시간에 다시 체크하도록 스케줄링
+        self.schedule_end_time_check()
+
+    def _show_notification(self, incomplete_tasks):
+        """윈도우 알림을 표시합니다."""
+        title = "업무 종료 30분 전 알림"
+        message = "미완료 항목이 있습니다:\n" + "\n".join(incomplete_tasks[:5])
+        if len(incomplete_tasks) > 5:
+            message += f"\n...외 {len(incomplete_tasks)-5}개"
+            
+        # 메인 스레드에서 메시지 박스 표시
+        self.root.after(0, lambda: messagebox.showwarning(title, message))
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -22,5 +22,6 @@
 ## dependencies
 ### pip install tk
 ### pip install pyinstaller
+### pip install win10toast
 
 #### pyinstaller --onefile --noconsole --add-data "todo.ico;." --icon todo.ico --name WeeklyTodo main.py
