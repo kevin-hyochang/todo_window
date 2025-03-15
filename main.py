@@ -86,11 +86,13 @@ class TodoApp:
     def set_work_end_time(self):
         """업무 종료 시간 설정"""
         current_time = self.config.get('work_end_time', '18:00')
-        new_time = simpledialog.askstring(
-            "업무 종료 시간 설정",
-            "업무 종료 시간을 입력하세요 (HH:MM)",
+        dialog = InputDialog(
+            self.root, 
+            "업무 종료 시간 설정", 
+            prompt="업무 종료 시간을 입력하세요 (HH:MM)", 
             initialvalue=current_time
         )
+        new_time = dialog.result
         
         if new_time:
             # 시간 형식 검증 (HH:MM)
@@ -220,8 +222,8 @@ class TodoApp:
         for i, time in enumerate(times):
             for j, day in enumerate(days):
      
-                if day == "토요일":
-                    if i ==0:
+                if (day == "토요일"):
+                    if (i ==0):
                         frame = ttk.Frame(main_frame)
                         frame.grid(row=1, column=j+1, rowspan=2, sticky="nsew", padx=5, pady=5)
                         self.create_time_widgets(frame, day, "전체")             
@@ -358,43 +360,41 @@ class TodoApp:
     
     def edit_item(self, event, day, time, listbox):
         """Todo 항목 수정"""
-        self.last_click_time = event.time  # 더블클릭 시간 저장
+        self.last_click_time = event.time
         
         index = listbox.nearest(event.y)
-
-        # 예외 처리: 리스트에 항목이 없는 경우
         if not (0 <= index < listbox.size()):
             return
 
         item = self.todo_items[day][time][index]
         
-        # 텍스트 입력 다이얼로그 표시
-        new_text = simpledialog.askstring("Edit Item", "Enter new text", initialvalue=item['text'])
+        # 커스텀 다이얼로그 사용
+        dialog = InputDialog(self.root, "항목 수정", initialvalue=item['text'])
+        new_text = dialog.result
+        
         if new_text:
             item['text'] = new_text
             listbox.delete(index)
             listbox.insert(index, new_text)
-            
-            # 너비 재조정
             self.adjust_listbox_width(listbox, day, time)
-            
             utils.save_config(self.config)
 
     def add_new_item(self, day, time, listbox):
         """새로운 Todo 항목 추가"""
-        new_text = simpledialog.askstring("Add Item", "Enter new item")
+        # 커스텀 다이얼로그 사용
+        dialog = InputDialog(self.root, "항목 추가")
+        new_text = dialog.result
+        
         if new_text:
-            # 처음 추가하는 경우에도 동작하도록 구조 확인 및 초기화
             if not self.todo_items.get(day):
                 self.todo_items[day] = {}
             if not self.todo_items[day].get(time):
                 self.todo_items[day][time] = []
-     
-            # 새 항목 추가    
+            
             self.todo_items[day][time].append({"text": new_text, "completed": False})
             listbox.insert(tk.END, new_text)
             utils.save_config(self.config)
- 
+
     def scroll_listbox(self, event, listbox):
         """마우스 휠 스크롤"""
         listbox.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -588,6 +588,86 @@ class TodoApp:
             if len(incomplete_tasks) > 5:
                 message += f"\n...외 {len(incomplete_tasks)-5}개"
             self.root.after(0, lambda: messagebox.showwarning(title, message))
+
+class InputDialog:
+    def __init__(self, parent, title, prompt=None, initialvalue=None):
+        self.result = None
+        
+        # 새 창 생성
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title(title)
+        self.dialog.transient(parent)  # 부모 창에 종속
+        
+        # 프레임 생성
+        frame = ttk.Frame(self.dialog, padding="10")
+        frame.grid(row=0, column=0, sticky="nsew")
+        
+        current_row = 0
+        # prompt가 있을 때만 레이블 추가
+        if prompt:
+            ttk.Label(frame, text=prompt).grid(row=current_row, column=0, pady=(0,5))
+            current_row += 1
+        
+        # 입력 필드
+        self.entry = ttk.Entry(frame, width=40)
+        self.entry.grid(row=current_row, column=0, pady=(0,10))
+        if initialvalue:
+            self.entry.insert(0, initialvalue)
+            self.entry.select_range(0, tk.END)
+        
+        # 버튼 프레임
+        button_frame = ttk.Frame(frame)
+        button_frame.grid(row=current_row + 1, column=0)
+        
+        # 확인 버튼
+        ttk.Button(button_frame, text="확인", command=self.ok).pack(side="left", padx=5)
+        
+        # 취소 버튼
+        ttk.Button(button_frame, text="취소", command=self.cancel).pack(side="left")
+        
+        # 기본 버튼 설정
+        self.dialog.bind("<Return>", lambda e: self.ok())
+        self.dialog.bind("<Escape>", lambda e: self.cancel())
+        
+        # 창 크기 조정을 위해 업데이트
+        self.dialog.update_idletasks()
+        
+        # 다이얼로그 크기
+        dialog_width = self.dialog.winfo_width()
+        dialog_height = self.dialog.winfo_height()
+        
+        # 마우스 위치 가져오기
+        mouse_x = parent.winfo_pointerx()
+        mouse_y = parent.winfo_pointery()
+        
+        # 화면 크기 가져오기
+        screen_width = parent.winfo_screenwidth()
+        screen_height = parent.winfo_screenheight()
+        
+        # 마우스 위치를 중심으로 다이얼로그 위치 계산
+        x = mouse_x - (dialog_width // 2)
+        y = mouse_y - (dialog_height // 2)
+        
+        # 화면 경계를 벗어나지 않도록 위치 조정
+        x = max(0, min(x, screen_width - dialog_width))
+        y = max(0, min(y, screen_height - dialog_height))
+        
+        # 다이얼로그 위치 설정
+        self.dialog.geometry(f"+{x}+{y}")
+        
+        # 입력 필드에 포커스
+        self.entry.focus_set()
+        
+        # 모달 설정
+        self.dialog.grab_set()
+        parent.wait_window(self.dialog)
+
+    def ok(self):
+        self.result = self.entry.get()
+        self.dialog.destroy()
+
+    def cancel(self):
+        self.dialog.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
