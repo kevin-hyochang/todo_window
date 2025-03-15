@@ -463,21 +463,19 @@ class TodoApp:
         # 리스트박스의 폰트 정보를 가져옴
         font = tkinter.font.Font(font=listbox['font'])
         
-        # 한글 기준 문자 너비 (캐싱)
-        base_width = font.measure('가')
+        # 픽셀 단위로 최대 너비 계산
+        max_pixels = font.measure('가' * min_width)  # 최소 기준 픽셀 너비
         
-        # 가장 긴 텍스트의 너비 계산
-        max_char_width = min_width
         for item in items:
             text = item['text']
-            # 전체 텍스트의 픽셀 너비를 한 번에 계산
-            text_width = font.measure(text)
-            # 문자 단위로 변환
-            char_width = int(text_width / base_width)
-            max_char_width = max(max_char_width, char_width)
-
+            text_pixels = font.measure(text)  # 실제 픽셀 너비 측정
+            max_pixels = max(max_pixels, text_pixels)
+        
+        # 적절한 문자 단위 계산 (여유있게)
+        char_width = int((max_pixels / font.measure('가')) * 1.2) + padding
+        
         # 최종 너비 설정
-        listbox.configure(width=max_char_width + padding)
+        listbox.configure(width=char_width)
         
         
     def handle_double_click(self, event, day, time, listbox):
